@@ -1,0 +1,72 @@
+
+
+
+get http://localhost:3000/todos/?status=TO%20DO
+
+ get http://localhost:3000/todos/323
+get http://localhost:3000/todos/?priority=HIGH
+
+
+
+get http://localhost:3000/todos/?priority=HIGH&status=IN%20PROGRESS
+
+
+get http://localhost:3000/todos/?search_q=BUY 
+
+get http://localhost:3000/todos/?category=WORK&status=DONE
+get http://localhost:3000/todos/?category=H
+
+get http://localhost:3000/todos/?priority=HIGH&category=LEARNING
+
+get http://localhost:3000/agenda/?date=2021-12-12
+
+
+get http://localhost:3000/agenda/?date=20-3-2
+
+put http://localhost:3000/todos/4
+Content-Type:application/json
+
+
+{
+  "status": "DONE"
+}
+
+
+
+post http://localhost:3000/todos
+Content-Type:application/json
+
+{
+  "id":323,
+  "todo": "Finalize event theme",
+  "priority": "LOW",
+  "status": "IN PROGRESS",
+  "category": "HOME",
+  "dueDate": "2021-02-22"
+}
+
+put http://localhost:3000/todos/4
+Content-Type:application/json
+
+
+{
+  "priority": "DONE"
+}
+
+put http://localhost:3000/todos/4
+Content-Type:application/json
+
+
+{
+  "category": "DONE"
+}
+
+
+put http://localhost:3000/todos/4
+Content-Type:application/json
+
+
+{
+  "dueDate": "2020-11-22"
+}
+
