@@ -5,12 +5,14 @@ const app = express()
 const cors = require('cors')
 
 const {open} = require('sqlite')
-
+const jwt=require("jsonwebtoken")
 const {format, parseISO} = require('date-fns')
 
 const sqlite3 = require('sqlite3')
 
 const path = require('path')
+const { request } = require('http')
+const { el } = require('date-fns/locale')
 
 const dbpath = path.join(__dirname, 'todoApplication.db')
 app.use(express.json())
@@ -31,6 +33,17 @@ const initializaDbAndServer = async () => {
   } catch (e) {
     console.log(`DB error :${e}`)
   }
+const dbQuery=`create table if not exists user(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE, 
+
+  password TEXT
+)`
+await db.run(dbQuery)
+
+
+
+ 
 }
 
 initializaDbAndServer()
@@ -55,6 +68,11 @@ const convertToCamel = db => {
     }))
   }
 }
+
+
+
+
+
 const checkValidity = async (request, response, next) => {
   let status, category, priority
   if (typeof request.body == 'object' && Object.keys(request.body).length > 0) {
@@ -84,6 +102,70 @@ const checkValidity = async (request, response, next) => {
     next()
   }
 }
+
+ 
+
+app.post("/register",async(request,response)=>{
+
+
+  const {username,password}=request.body
+  
+
+
+  const dbQuery=`select from user where  username='${username}'`
+  const userRes=await db.get(dbQuery)
+  response.send(userRes)
+  
+  if(userRes===undefined){
+
+  const dbQuery=`insert into user(username,password) values('${username}','${password}')`
+
+  const dbResponse=await db.run(dbQuery)
+
+  response.send("User created successfully")    
+
+  }
+  else{
+    response.send("User already exists")
+  }
+
+  
+    
+
+
+})
+
+
+app.get("/users",async(request,response)=>{
+  const dbQuery=`select * from user`
+  const dbResponse=await db.all(dbQuery)
+  response.send(dbResponse)
+}
+)
+app.post("/login",async(request,response)=>{
+  const {username,password}=request.body
+
+  const dbQuery=`select * from user where username='${username}' and password='${password}'`
+  const userRes=await db.get(dbQuery)
+if(userRes===undefined){
+
+  response.send("Invalid user")
+
+
+}
+else{
+  const payload={
+    username:username
+  }
+  const jwtToken=jwt.sign(payload,"MY_SECRET_KEY")
+  response.send({jwtToken}) 
+}
+})
+
+
+
+
+
 
 app.get('/todos', checkValidity, async (request, response) => {
   const {status, priority, category, search_q} = request.query
