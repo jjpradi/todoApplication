@@ -7,7 +7,7 @@ const cors = require('cors')
 const {open} = require('sqlite')
 const jwt=require("jsonwebtoken")
 const {format, parseISO} = require('date-fns')
-
+const bcrypt = require('bcrypt')
 const sqlite3 = require('sqlite3')
 
 const path = require('path')
@@ -105,61 +105,79 @@ const checkValidity = async (request, response, next) => {
 
  
 
-app.post("/register",async(request,response)=>{
+app.post('/register', async (request, response) => {
+  try {
+    const {username, password} = request.body
 
+    if (!username || !password) {
+      return response.status(400).send('Username and password required')
+    }
 
-  const {username,password}=request.body
-  
+    const selectQuery = `select * from user where username = ?`
+    const userRes = await db.get(selectQuery, [username])
 
+    if (userRes === undefined) {
 
-  const dbQuery=`select from user where  username='${username}'`
-  const userRes=await db.get(dbQuery)
-  response.send(userRes)
-  
-  if(userRes===undefined){
-
-  const dbQuery=`insert into user(username,password) values('${username}','${password}')`
-
-  const dbResponse=await db.run(dbQuery)
-
-  response.send("User created successfully")    
-
-  }
-  else{
-    response.send("User already exists")
-  }
-
-  
+      const hashedPassword = await bcrypt.hash(password, 10)
+      const insertQuery = `insert into user(username,password) values(?,?)`
+      await db.run(insertQuery, [username, hashedPassword])
+      return response.status(201).send('User created successfully')
     
+    }
+     else {
+      return response.status(400).send('User already exists')
+    }
+  } catch (e) {
 
-
+    console.error(e)
+    return response.status(500).send('Server error')
+  
+  }
 })
 
 
 app.get("/users",async(request,response)=>{
+  
   const dbQuery=`select * from user`
   const dbResponse=await db.all(dbQuery)
   response.send(dbResponse)
+
 }
+
 )
 app.post("/login",async(request,response)=>{
   const {username,password}=request.body
 
-  const dbQuery=`select * from user where username='${username}' and password='${password}'`
+  const dbQuery=`select * from user where username='${username}' `
   const userRes=await db.get(dbQuery)
 if(userRes===undefined){
+  if(!username || !password){
+    return response.status(400).send('Username and password required')
+  }
+
 
   response.send("Invalid user")
 
 
 }
 else{
+  const isTrue=await bcrypt.compare(password,userRes.password)
+  if(isTrue===false){   
+
+
+      return response.status(400).send('Invalid password')
+    
+    }
+    else{
   const payload={
     username:username
   }
   const jwtToken=jwt.sign(payload,"MY_SECRET_KEY")
   response.send({jwtToken}) 
 }
+
+}
+
 })
 
 
