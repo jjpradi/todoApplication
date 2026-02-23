@@ -3,12 +3,12 @@
 
 get http://localhost:3000/todos/?status=TO%20DO
 
- get http://localhost:3000/todos/323
+ get http://localhost:5000/todos/323
 get http://localhost:3000/todos/?priority=HIGH
 
 
 
-get http://localhost:3000/todos/?priority=HIGH&status=IN%20PROGRESS
+get http://localhost:5000/todos/?priority=HIGH&status=IN%20PROGRESS
 
 
 get http://localhost:3000/todos/?search_q=BUY 

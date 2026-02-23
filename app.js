@@ -2,6 +2,8 @@ const express = require('express')
 
 const app = express()
 
+const cors = require('cors')
+
 const {open} = require('sqlite')
 
 const {format, parseISO} = require('date-fns')
@@ -12,16 +14,19 @@ const path = require('path')
 
 const dbpath = path.join(__dirname, 'todoApplication.db')
 app.use(express.json())
+app.use(cors())
 let db
 const initializaDbAndServer = async () => {
   try {
     db = await open({
       filename: dbpath,
+      
       driver: sqlite3.Database,
+
     })
 
-    app.listen(3000, () =>
-      console.log('server start running at http://localhost:3000'),
+    app.listen(5000, () =>
+      console.log('server start running at http://localhost:5000'),
     )
   } catch (e) {
     console.log(`DB error :${e}`)
@@ -81,7 +86,7 @@ const checkValidity = async (request, response, next) => {
 }
 
 app.get('/todos', checkValidity, async (request, response) => {
-  const {status, priority, category} = request.query
+  const {status, priority, category, search_q} = request.query
   const dbQuery = () => {
     switch (true) {
       case status !== undefined:
@@ -101,6 +106,8 @@ app.get('/todos', checkValidity, async (request, response) => {
         return `select * from todo where category='${category}'`
       case category !== undefined && priority !== undefined:
         return `select * from todo where category='${category}' and priority='${priority}'`
+      default:
+        return `select * from todo`
     }
   }
 
@@ -131,16 +138,15 @@ app.get('/agenda/', async (request, response) => {
 app.post('/todos', checkValidity, async (request, response) => {
   const {id, todo, priority, status, category, dueDate} = request.body
 
-  const dbQuery = `insert into todo(id,todo,priority,status,category,due_date) values ${id},'${todo}','${priority}','${status}','${category}',
-'${dueDate}'
-`
+  const dbQuery = `insert into todo(id,todo,priority,status,category,due_date) values (${id},'${todo}','${priority}','${status}','${category}','${dueDate}')`
 
   const dbResponse = await db.run(dbQuery)
   response.send('Todo Successfully Added')
 })
 
-app.put('/todos', checkValidity, async (request, response) => {
-  const {status, priority, category} = request.body
+app.put('/todos/:todoId', checkValidity, async (request, response) => {
+  const {todoId} = request.params
+  const {status, priority, category, dueDate} = request.body
 
   const dbQuery = () => {
     switch (true) {
@@ -176,7 +182,7 @@ app.put('/todos', checkValidity, async (request, response) => {
 
 app.delete('/todos/:todoId', async (request, response) => {
   const {todoId} = request.params
-  const dbQuery = `drop todo where id=${todoId}`
+  const dbQuery = `delete from todo where id=${todoId}`
 
   const dbResponse = await db.run(dbQuery)
   response.send('Todo Deleted')
