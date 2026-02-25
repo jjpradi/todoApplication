@@ -1,12 +1,13 @@
+require("dotenv").config();
 const express = require('express')
 
 const app = express()
 
 const cors = require('cors')
 
-const {open} = require('sqlite')
-const jwt=require("jsonwebtoken")
-const {format, parseISO} = require('date-fns')
+const { open } = require('sqlite')
+const jwt = require("jsonwebtoken")
+const { format, parseISO } = require('date-fns')
 const bcrypt = require('bcrypt')
 const sqlite3 = require('sqlite3')
 
@@ -17,12 +18,15 @@ const { el } = require('date-fns/locale')
 const dbpath = path.join(__dirname, 'todoApplication.db')
 app.use(express.json())
 app.use(cors())
+
+const aiRoutes = require("./routes/ai");
+app.use("/api/ai", aiRoutes);
 let db
 const initializaDbAndServer = async () => {
   try {
     db = await open({
       filename: dbpath,
-      
+
       driver: sqlite3.Database,
 
     })
@@ -33,17 +37,17 @@ const initializaDbAndServer = async () => {
   } catch (e) {
     console.log(`DB error :${e}`)
   }
-const dbQuery=`create table if not exists user(
+  const dbQuery = `create table if not exists user(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE, 
 
   password TEXT
 )`
-await db.run(dbQuery)
+  await db.run(dbQuery)
 
 
 
- 
+
 }
 
 initializaDbAndServer()
@@ -76,9 +80,9 @@ const convertToCamel = db => {
 const checkValidity = async (request, response, next) => {
   let status, category, priority
   if (typeof request.body == 'object' && Object.keys(request.body).length > 0) {
-    ;({status, category, priority} = request.body)
+    ; ({ status, category, priority } = request.body)
   } else {
-    ;({status, priority, category} = request.query)
+    ; ({ status, priority, category } = request.query)
   }
 
   const prioritylist = ['LOW', 'HIGH', 'MEDIUM']
@@ -103,14 +107,14 @@ const checkValidity = async (request, response, next) => {
   }
 }
 
- 
+
 
 app.post('/register', async (request, response) => {
   try {
-    const {username, password} = request.body
+    const { username, password } = request.body
 
     if (!username || !password) {
-      return response.status(400).send('Username and password required')
+      return response.status(400).json({ message: 'Username and password required' })
     }
 
     const selectQuery = `select * from user where username = ?`
@@ -121,62 +125,63 @@ app.post('/register', async (request, response) => {
       const hashedPassword = await bcrypt.hash(password, 10)
       const insertQuery = `insert into user(username,password) values(?,?)`
       await db.run(insertQuery, [username, hashedPassword])
-      return response.status(201).send('User created successfully')
-    
+      return response.status(201).json({ message: 'User created successfully' })
+
     }
-     else {
-      return response.status(400).send('User already exists')
+    else {
+      return response.status(400).json({ message: 'User already exists' })
     }
   } catch (e) {
 
     console.error(e)
-    return response.status(500).send('Server error')
-  
+    return response.status(500).json({ message: 'Server error' })
+
   }
 })
 
 
-app.get("/users",async(request,response)=>{
-  
-  const dbQuery=`select * from user`
-  const dbResponse=await db.all(dbQuery)
+app.get("/users", async (request, response) => {
+
+  const dbQuery = `select * from user`
+  const dbResponse = await db.all(dbQuery)
   response.send(dbResponse)
 
 }
 
 )
-app.post("/login",async(request,response)=>{
-  const {username,password}=request.body
 
-  const dbQuery=`select * from user where username='${username}' `
-  const userRes=await db.get(dbQuery)
-if(userRes===undefined){
-  if(!username || !password){
-    return response.status(400).send('Username and password required')
-  }
+app.post("/login", async (request, response) => {
+  const { username, password } = request.body
 
-
-  response.send("Invalid user")
-
-
-}
-else{
-  const isTrue=await bcrypt.compare(password,userRes.password)
-  if(isTrue===false){   
-
-
-      return response.status(400).send('Invalid password')
-    
+  const dbQuery = `select * from user where username='${username}' `
+  const userRes = await db.get(dbQuery)
+  if (userRes === undefined) {
+    if (!username || !password) {
+      response.status(400).json({ message: 'Username and password required' })
     }
-    else{
-  const payload={
-    username:username
-  }
-  const jwtToken=jwt.sign(payload,"MY_SECRET_KEY")
-  response.send({jwtToken}) 
-}
 
-}
+
+    response.status(400).json({ message: 'Invalid user' })
+
+
+  }
+  else {
+    const isTrue = await bcrypt.compare(password, userRes.password)
+    if (isTrue === false) {
+
+
+      response.status(400).json({ message: 'Invalid password' })
+
+    }
+    else {
+      const payload = {
+        username: username
+      }
+      const jwtToken = jwt.sign(payload, "MY_SECRET_KEY")
+      response.status(200).json({ jwtToken, message: 'Login successful' })
+    }
+
+  }
 
 })
 
@@ -186,7 +191,7 @@ else{
 
 
 app.get('/todos', checkValidity, async (request, response) => {
-  const {status, priority, category, search_q} = request.query
+  const { status, priority, category, search_q } = request.query
   const dbQuery = () => {
     switch (true) {
       case status !== undefined:
@@ -216,15 +221,16 @@ app.get('/todos', checkValidity, async (request, response) => {
 })
 
 app.get('/todos/:todoId', async (request, response) => {
-  const {todoId} = request.params
+  const { todoId } = request.params
   const dbQuery = `select *  from todo where id=${todoId}`
+
 
   const dbResponse = await db.get(dbQuery)
   response.send(convertToCamel(dbResponse))
 })
 
 app.get('/agenda/', async (request, response) => {
-  const {date} = request.query
+  const { date } = request.query
 
   const newDate = Date.parse(date)
   const formattedDate = format(newDate, 'dd-MM-yyyy')
@@ -236,7 +242,7 @@ app.get('/agenda/', async (request, response) => {
 })
 
 app.post('/todos', checkValidity, async (request, response) => {
-  const {id, todo, priority, status, category, dueDate} = request.body
+  const { id, todo, priority, status, category, dueDate } = request.body
 
   const dbQuery = `insert into todo(id,todo,priority,status,category,due_date) values (${id},'${todo}','${priority}','${status}','${category}','${dueDate}')`
 
@@ -245,8 +251,8 @@ app.post('/todos', checkValidity, async (request, response) => {
 })
 
 app.put('/todos/:todoId', checkValidity, async (request, response) => {
-  const {todoId} = request.params
-  const {status, priority, category, dueDate} = request.body
+  const { todoId } = request.params
+  const { status, priority, category, dueDate } = request.body
 
   const dbQuery = () => {
     switch (true) {
@@ -274,14 +280,15 @@ app.put('/todos/:todoId', checkValidity, async (request, response) => {
     }
   }
 
+
   const val = dbQuery()
-  const newVal = val[0]
+
   const dbResponse = await db.run(val[1])
   response.send(`${newVal} updated`)
 })
 
 app.delete('/todos/:todoId', async (request, response) => {
-  const {todoId} = request.params
+  const { todoId } = request.params
   const dbQuery = `delete from todo where id=${todoId}`
 
   const dbResponse = await db.run(dbQuery)
@@ -289,3 +296,4 @@ app.delete('/todos/:todoId', async (request, response) => {
 })
 
 module.exports = app
+require('dotenv').config();
