@@ -1,48 +1,70 @@
 const express = require("express");
-const router = express.Router();
 const axios = require("axios");
 
+const router = express.Router();
+
 router.post("/analyze", async (req, res) => {
-  try {
-    const { task } = req.body;
+  const { todo } = req.body;
 
-    const prompt = `
-You are an AI task analyzer.
-
-Analyze this todo task: "${task}"
-
-Return strictly in this JSON format:
-
+  const prompt = `
+Analyze this todo and respond in this JSON format:
 {
-  "category": "",
-  "priority": "",
-  "suggested_deadline": "",
-  "summary": ""
+  "improved_version": "",
+  "priority": "Low | Medium | High",
+  "category": ""
 }
 
-Return ONLY valid JSON.
+Todo: ${todo}
 `;
 
-    const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "llama3",
-      prompt: prompt,
-      stream: false
+  // 🔵 1. Try Hugging Face
+  try {
+    const hfResponse = await axios.post(
+      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+      { inputs: prompt },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`
+        }
+      }
+    );
+
+    return res.json({
+      source: "huggingface",
+      result: hfResponse.data[0].generated_text
     });
+    
 
-    const raw = response.data.response;
+  } catch (hfError) {
+    console.log("HF failed, switching to Ollama...");
+  }
 
-    // Extract JSON safely
+  // 🟢 2. Fallback to Ollama
+  try {
+    const ollamaResponse = await axios.post(
+      "http://localhost:11434/api/generate",
+      {
+        model: "llama3",
+        prompt: prompt,
+        stream: false
+      }
+    );
+
+    raw = ollamaResponse.data.response;
+    
+  
     const jsonStart = raw.indexOf("{");
     const jsonEnd = raw.lastIndexOf("}");
-    const cleanJson = raw.slice(jsonStart, jsonEnd + 1);
-
-    const parsed = JSON.parse(cleanJson);
+    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
 
     res.json(parsed);
 
-  } catch (err) {
-    console.error("OLLAMA ERROR:", err.message);
-    res.status(500).json({ error: "AI analysis failed" });
+  } catch (ollamaError) {
+    console.error("Both AI providers failed");
+
+    return res.status(500).json({
+      message: "AI service unavailable"
+    });
   }
 });
 
