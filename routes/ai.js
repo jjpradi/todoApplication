@@ -11,7 +11,11 @@ Analyze this todo and respond in this JSON format:
 {
   "improved_version": "",
   "priority": "Low | Medium | High",
-  "category": ""
+  "category": "",
+  "summary":"",
+  "rephrase":"",
+  "explanation":""
+  
 }
 
 Todo: ${todo}

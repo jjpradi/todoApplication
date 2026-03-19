@@ -1,5 +1,7 @@
 require("dotenv").config();
+
 const express = require('express')
+
 
 const app = express()
 
@@ -12,16 +14,23 @@ const bcrypt = require('bcrypt')
 const sqlite3 = require('sqlite3')
 
 const path = require('path')
+
 const { request } = require('http')
+
 const { el } = require('date-fns/locale')
 
 const dbpath = path.join(__dirname, 'todoApplication.db')
+
 app.use(express.json())
+
 app.use(cors())
 
 const aiRoutes = require("./routes/ai");
+
 app.use("/api/ai", aiRoutes);
+
 let db
+
 const initializaDbAndServer = async () => {
   try {
     db = await open({
@@ -44,8 +53,6 @@ const initializaDbAndServer = async () => {
   password TEXT
 )`
   await db.run(dbQuery)
-
-
 
 
 }
@@ -79,9 +86,12 @@ const convertToCamel = db => {
 
 const checkValidity = async (request, response, next) => {
   let status, category, priority
+  
   if (typeof request.body == 'object' && Object.keys(request.body).length > 0) {
     ; ({ status, category, priority } = request.body)
-  } else {
+  } 
+  
+  else {
     ; ({ status, priority, category } = request.query)
   }
 
@@ -118,26 +128,42 @@ app.post('/register', async (request, response) => {
     }
 
     const selectQuery = `select * from user where username = ?`
+
     const userRes = await db.get(selectQuery, [username])
 
     if (userRes === undefined) {
 
       const hashedPassword = await bcrypt.hash(password, 10)
+
+
+
+
+
       const insertQuery = `insert into user(username,password) values(?,?)`
+
       await db.run(insertQuery, [username, hashedPassword])
+
       return response.status(201).json({ message: 'User created successfully' })
 
+         
+
+
     }
-    else {
+    else
+       {
       return response.status(400).json({ message: 'User already exists' })
     }
+
   } catch (e) {
 
     console.error(e)
     return response.status(500).json({ message: 'Server error' })
 
   }
-})
+
+}
+
+)
 
 
 app.get("/users", async (request, response) => {
@@ -146,9 +172,28 @@ app.get("/users", async (request, response) => {
   const dbResponse = await db.all(dbQuery)
   response.send(dbResponse)
 
+
 }
 
+
+
+
+
 )
+
+
+
+
+app.get("/todos/favorites", async (request, response) => {
+
+  const dbQuery = `select * from todo where is_important=true`
+  const dbResponse = await db.all(dbQuery)
+  response.send(dbResponse)
+})
+
+
+
+
 
 app.post("/login", async (request, response) => {
   const { username, password } = request.body
@@ -243,18 +288,45 @@ app.get('/agenda/', async (request, response) => {
 
 app.post('/todos', checkValidity, async (request, response) => {
   const { id, todo, priority, status, category, dueDate } = request.body
+const embedding = await getEmbedding(text)
+
+
 
   const dbQuery = `insert into todo(id,todo,priority,status,category,due_date) values (${id},'${todo}','${priority}','${status}','${category}','${dueDate}')`
 
   const dbResponse = await db.run(dbQuery)
+  
   response.send('Todo Successfully Added')
+
 })
+
+
+app.put('/todos/:todoId', async (request, response) => {
+
+  const { todoId } = request.params
+  const { status, priority, category, dueDate } = request.body
+
+  const getQuery = `select is_completed from todo where id=${todoId}`
+
+  const dbRes = await db.get(getQuery)
+
+  const query = `update todo set is_completed=${!dbRes.is_completed} where id=${todoId}`
+
+  await db.run(query)
+  response.send('Todo Updated')
+
+})
+
+
+
+
 
 app.put('/todos/:todoId', checkValidity, async (request, response) => {
   const { todoId } = request.params
   const { status, priority, category, dueDate } = request.body
 
   const dbQuery = () => {
+
     switch (true) {
       case status !== undefined:
         return [
