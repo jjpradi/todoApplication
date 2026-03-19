@@ -1,45 +1,43 @@
 const express = require("express");
 const axios = require("axios");
+require('dotenv').config()
+
+const {GoogleGenAI} = require('@google/genai')
 
 const router = express.Router();
 
+const genAI = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+})
 router.post("/analyze", async (req, res) => {
-  const { todo } = req.body;
-
-  const prompt = `
-Analyze this todo and respond in this JSON format:
-{
-  "improved_version": "",
-  "priority": "Low | Medium | High",
-  "category": "",
-  "summary":"",
-  "rephrase":"",
-  "explanation":""
   
-}
-
-Todo: ${todo}
-`;
 
   // 🔵 1. Try Hugging Face
   try {
-    const hfResponse = await axios.post(
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-      { inputs: prompt },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`
-        }
-      }
-    );
 
+    console.log(req.body)
+    const todo = req.body.task
+    console.log(todo)
+    const result = await genAI.models.generateContent({
+      model: 'models/gemini-pro', // recommended
+      contents: `
+      
+       
+      "priority":"","status":"",
+       "improvise version":"",
+       "sugesstion":""
+
+${todo}
+  `,
+    })
+const reply=result.text
     return res.json({
-      source: "huggingface",
-      result: hfResponse.data[0].generated_text
+      reply
     });
     
 
   } catch (hfError) {
+    console.log(hfError)
     console.log("HF failed, switching to Ollama...");
   }
 

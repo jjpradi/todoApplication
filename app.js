@@ -21,7 +21,9 @@ const { el } = require('date-fns/locale')
 
 const dbpath = path.join(__dirname, 'todoApplication.db')
 
+
 app.use(express.json())
+
 
 app.use(cors())
 
